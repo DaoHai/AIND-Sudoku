@@ -15,21 +15,73 @@ def assign_value(values, box, value):
         assignments.append(values.copy())
     return values
 
+rows = 'ABCDEFGHI'
+cols = '123456789'
+
+def cross(A, B):
+    "Cross product of elements in A and elements in B."
+    return [s+t for s in A for t in B]
+
+boxes = cross(rows, cols)
+row_units = [cross(r, cols) for r in rows]
+column_units = [cross(rows, c) for c in cols]
+square_units = [cross(rs, cs) for rs in ('ABC','DEF','GHI') for cs in ('123','456','789')]
+diag_units = [[rows[i] + cols[i] for i in range(9)], [rows[::-1][i] + cols[i] for i in range(9)]]
+unitlist = row_units + column_units + square_units + diag_units
+units = dict((s, [u for u in unitlist if s in u]) for s in boxes)
+peers = dict((s, set(sum(units[s],[]))-set([s])) for s in boxes)
+
 def naked_twins(values):
     """Eliminate values using the naked twins strategy.
     Args:
         values(dict): a dictionary of the form {'box_name': '123456789', ...}
-
     Returns:
         the values dictionary with the naked twins eliminated from peers.
     """
-
+    
     # Find all instances of naked twins
     # Eliminate the naked twins as possibilities for their peers
+    
+    # Collect all the boxes with two values
+    boxes_two = [box for box in values.keys() if len(values[box]) == 2]
+    
+    # Loop through these boxes
+    for box_two in boxes_two:
+        
+        # Get that box's values
+        box_values = values[box_two]
+        
+        # Peers that have the same two values:
+        same_peers = [peer for peer in peers[box_two] if values[peer] == box_values]
+        
+        # Peers that have the same two values:
+        if len(same_peers) == 1: # same_peer exists
 
-def cross(A, B):
-    "Cross product of elements in A and elements in B."
-    pass
+            # Peers that have the same two values:
+            box_two_peers = same_peers[0]
+            
+            # Get the peers of each box
+            peers_1, peers_2 = peers[box_two], peers[box_two_peers] 
+            
+            # Get boxes that are peers of both
+            peers_of_both = [peer2 for peer2 in peers_2 if peer2 in peers_1]    
+
+            # For each "peer of both"
+            for peer_of_both in peers_of_both:
+                
+                if len(values[peer_of_both]) > 1:
+
+                # Eliminate the values from box's values
+                    for value in box_values:
+                
+                    # If the peer_of_both
+                        if value in values[peer_of_both]:
+
+                            values[peer_of_both] = values[peer_of_both].replace(value, '')
+                            # print("Eliminated", value, "from", peer_of_both, "using Naked Twins")
+                            # display(values)
+    return values
+
 
 def grid_values(grid):
     """
@@ -41,7 +93,16 @@ def grid_values(grid):
             Keys: The boxes, e.g., 'A1'
             Values: The value in each box, e.g., '8'. If the box has no value, then the value will be '123456789'.
     """
-    pass
+    chars = []
+    digits = '123456789'
+    for c in grid:
+        if c in digits:
+            chars.append(c)
+        if c == '.':
+            chars.append(digits)
+    # Nine by nine grid
+    assert len(chars) == 81
+    return dict(zip(boxes, chars))
 
 def display(values):
     """
@@ -49,19 +110,94 @@ def display(values):
     Args:
         values(dict): The sudoku in dictionary form
     """
-    pass
+    width = 1+max(len(values[s]) for s in boxes)
+    line = '+'.join(['-'*(width*3)]*3)
+    for r in rows:
+        print(''.join(values[r+c].center(width)+('|' if c in '36' else '')
+                      for c in cols))
+        if r in 'CF': print(line)
+    print
 
 def eliminate(values):
-    pass
+    
+    """Go through all the boxes, and whenever there is a box with a value, eliminate this value from the values of all its peers.
+    Args:
+        A sudoku in dictionary form.
+    Returns:
+        The resulting sudoku in dictionary form."""
+        
+    solved_values = [box for box in values.keys() if len(values[box]) == 1]
+    for box in solved_values:
+        digit = values[box]
+        # Remove solved digit from the list of possible values for each peer
+        for peer in peers[box]:
+            values[peer] = values[peer].replace(digit,'')
+    return values
 
 def only_choice(values):
-    pass
+    """
+    Go through all the units, and whenever there is a unit with a value that only fits in one box, assign the value to this box.
+    Args:
+        A sudoku in dictionary form.
+    Returns:
+        The resulting sudoku in dictionary form.
+    """
+    for unit in unitlist:
+        for digit in '123456789':
+            # Create a list of all the boxes in the unit in question
+            # that contain the digit in question
+            dplaces = [box for box in unit if digit in values[box]]
+            if len(dplaces) == 1:
+                # This box is the only choice for this digit
+                values = assign_value(values, dplaces[0], digit)
+    return values
 
 def reduce_puzzle(values):
-    pass
+    """
+    Iterate eliminate() and only_choice(). If at some point, there is a box with no available values, return False.
+    If the sudoku is solved, return the sudoku.
+    If after an iteration of both functions, the sudoku remains the same, return the sudoku.
+    Args:
+        A sudoku in dictionary form.
+    Returns:
+        The resulting sudoku in dictionary form.
+    """
+    stalled = False
+    while not stalled:
+        solved_values_before = len([box for box in values.keys() if len(values[box]) == 1])
+        # Apply the eliminate exclusion strategy
+        values = eliminate(values)
+        # Apply the only choice assignment strategy
+        values = only_choice(values)
+        # Apply the naked twins strategy
+        values = naked_twins(values)
+        
+        solved_values_after = len([box for box in values.keys() if len(values[box]) == 1])
+        # Stop applying these strategies if we stop making box-solving progress
+        stalled = solved_values_before == solved_values_after
+        # Sanity check: never eliminate all digits from a box's possibilities
+        if len([box for box in values.keys() if len(values[box]) == 0]):
+            return False
+    return values
 
 def search(values):
-    pass
+    "Using depth-first search and propagation, try all possible values."
+    # First, reduce the puzzle using the previous function
+    values = reduce_puzzle(values)
+    if values is False:
+        return False ## Failed earlier
+    if all(len(values[s]) == 1 for s in boxes): 
+        return values ## Solved!
+    # Choose one of the unfilled squares with the fewest possibilities
+    n,s = min((len(values[s]), s) for s in boxes if len(values[s]) > 1)
+    # Now use recurrence to solve each one of the resulting sudokus, and 
+    # and if one returns a value (not False), return that answer!
+    for value in values[s]:
+        new_sudoku = values.copy()
+        new_sudoku[s] = value
+        attempt = search(new_sudoku)
+        if attempt:
+            return attempt
 
 def solve(grid):
     """
@@ -72,7 +208,14 @@ def solve(grid):
     Returns:
         The dictionary representation of the final sudoku grid. False if no solution exists.
     """
-
+    # Convert string grid to dictionary grid
+    values = grid_values(grid)
+    solved = search(values)
+    if solved:
+        return solved
+    else:
+        return False
+    
 if __name__ == '__main__':
     diag_sudoku_grid = '2.............62....1....7...6..8...3...9...7...6..4...4....8....52.............3'
     display(solve(diag_sudoku_grid))

@@ -5,9 +5,13 @@
 Q: How do we use constraint propagation to solve the naked twins problem?  
 A: *Student should provide answer here*
 
+Constraint Propagation is a way to tighten the search space by iteratively applying a constraint to the problem until there is no more change. For the naked twin strategies, we firstly find all the boxes with only two values and loop over each element of these boxes. For each box in this set, we find its peer (either one (found) or zeros (not found)) having same set of two values. Next, for pair of boxes with identical two values, we find the peers of this pair of boxes. For each box in this peers, we eliminate the two values from its possible values.  
+
 # Question 2 (Diagonal Sudoku)
 Q: How do we use constraint propagation to solve the diagonal sudoku problem?  
 A: *Student should provide answer here*
+
+The sole difference between diagonal sudoku and conventional one is that the former one has two more units being constituted by two diagonals. Because of that, the unit list has to be modified and consequently, the peers for each box is changed. The strategies including elimination, only choice, search and naked twins remains the same.
 
 ### Install
 
